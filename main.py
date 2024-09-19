@@ -49,13 +49,8 @@ class SelectedOshi(BaseModel):
     email: str
     oshi_name: str
 
-class OshiInfo(BaseModel):
-    name: str
-    summary: str
-    official_site: str
-    sns_links: dict
-
 class OshiRequest(BaseModel):
+    username: str
     oshi_name: str
     
 # 特定のSNSリンクをフィルタリングするためのヘルパー関数
@@ -100,8 +95,16 @@ def extract_sns_links(soup):
 
 @app.post("/get-wikipedia-and-sns-urls")
 async def get_wikipedia_and_sns_urls(request: OshiRequest):
+    username = request.username
     oshi_name = request.oshi_name
     wiki_url = "https://ja.wikipedia.org/w/api.php"
+    
+    # SupabaseからユーザーIDを取得
+    user_data = supabase.table('users').select('id').eq('username', username).execute()
+    if not user_data.data or not user_data.data[0]:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user_id = user_data.data[0]['id']
     
     # Wikipedia APIを使って推しのページURLを取得
     params = {
@@ -139,6 +142,15 @@ async def get_wikipedia_and_sns_urls(request: OshiRequest):
     # SNSリンクを抽出
     sns_links = extract_sns_links(soup)
     
+    # Supabaseのoshiテーブルにデータを格納
+    supabase.table('oshi').insert({
+        'user_id': user_id,
+        'oshi_name': oshi_name,
+        'summary': "Summary not available",  # summaryが取得できない場合のデフォルト値
+        'official_site': official_site_url,
+        'sns_links': sns_links
+    }).execute()
+    
     # Wikipedia URL、公式サイトURL、SNSリンクをレスポンスとして返す
     return {
         "wikipedia_url": page_url,
@@ -173,6 +185,7 @@ def get_wikipedia_page_id(oshi_name: str) -> str:
             raise HTTPException(status_code=404, detail="Wikipediaの検索結果が見つかりませんでした")
     else:
         raise HTTPException(status_code=500, detail="Wikipedia APIからデータを取得できませんでした")
+
 
 # ユーザー登録エンドポイント
 @app.post("/register")
