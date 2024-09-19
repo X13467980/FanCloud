@@ -38,7 +38,6 @@ class UserCreate(BaseModel):
     email: str
     password: str
     
-
 class UserGenres(BaseModel):
     email: str
     genres: list[str]
@@ -56,6 +55,53 @@ class OshiInfo(BaseModel):
     official_site: str
     sns_links: dict
 
+class OshiRequest(BaseModel):
+    oshi_name: str
+    
+@app.post("/get-wikipedia-and-official-url")
+async def get_wikipedia_and_official_url(request: OshiRequest):
+    oshi_name = request.oshi_name
+    wiki_url = "https://ja.wikipedia.org/w/api.php"
+    
+    # Wikipedia APIを使って推しのページURLを取得
+    params = {
+        "action": "query",
+        "format": "json",
+        "prop": "info",
+        "titles": oshi_name,
+        "inprop": "url"
+    }
+    
+    response = requests.get(wiki_url, params=params)
+    data = response.json()
+    
+    pages = data.get("query", {}).get("pages", {})
+    if not pages:
+        raise HTTPException(status_code=404, detail="Wikipedia page not found")
+
+    page = next(iter(pages.values()))
+    page_url = page.get("fullurl")
+    
+    if not page_url:
+        raise HTTPException(status_code=404, detail="Wikipedia URL not found")
+    
+    # WikipediaのページHTMLを取得
+    html_response = requests.get(page_url)
+    soup = BeautifulSoup(html_response.content, 'html.parser')
+
+    # クラス名が official-website のリンクを探す
+    official_site_tag = soup.find(class_="official-website")
+    official_site_url = official_site_tag.a['href'] if official_site_tag and official_site_tag.a else None
+
+    if not official_site_url:
+        official_site_url = "Official website not found"
+    
+    # Wikipedia URLと公式サイトURLをレスポンスとして返す
+    return {
+        "wikipedia_url": page_url,
+        "official_site_url": official_site_url
+    }
+    
 # パスワードのハッシュ化
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
