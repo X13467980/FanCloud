@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from supabase import create_client, Client
 import os
@@ -22,6 +23,14 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # FastAPIアプリケーションのインスタンス
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Pydanticのモデル
 class UserCreate(BaseModel):
