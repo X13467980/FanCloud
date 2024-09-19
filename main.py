@@ -54,7 +54,7 @@ class OshiRequest(BaseModel):
     oshi_name: str
     
 class UserOshiRequest(BaseModel):
-    username: str
+    email: str
     oshi_name: str  
     
 class EmailRequest(BaseModel):
@@ -304,11 +304,11 @@ async def fetch_oshi_info(request: OshiRequest):
 
 @app.post("/save-oshi-info")
 async def save_oshi_info(request: UserOshiRequest):
-    username = request.username
+    email = request.email
     oshi_name = request.oshi_name
     
     # SupabaseからユーザーIDを取得
-    user_data = supabase.table('users').select('id').eq('username', username).execute()
+    user_data = supabase.table('users').select('id').eq('email', email).execute()
     if not user_data.data or not user_data.data[0]:
         raise HTTPException(status_code=404, detail="User not found")
     
