@@ -8,23 +8,27 @@ import hashlib
 import requests
 from bs4 import BeautifulSoup
 
-# .envファイルを読み込む
+# 環境変数をロード
 load_dotenv()
 
-# 環境変数からSupabaseのURLとキーを取得
+# Supabase URLとキーを取得
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+SEARCH_ENGINE_ID = os.getenv("GOOGLE_CSE_ID")
 
-# Supabaseクライアントの設定
+# Supabaseクライアントを作成
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# FastAPIアプリケーションのインスタンスを作成
+# FastAPIアプリケーションのインスタンス
 app = FastAPI()
 
-# Pydanticモデル
+# Pydanticのモデル
 class UserCreate(BaseModel):
+    username: str  # ユーザーネームを追加
     email: str
     password: str
+    
 
 class UserGenres(BaseModel):
     email: str
@@ -43,63 +47,115 @@ class OshiInfo(BaseModel):
     official_site: str
     sns_links: dict
 
-# パスワードをハッシュ化する関数
+# パスワードのハッシュ化
 def hash_password(password: str) -> str:
-    """ パスワードをハッシュ化する関数 """
     return hashlib.sha256(password.encode()).hexdigest()
 
-# SNSリンクを抽出する関数
-def extract_sns_links(html_content: str) -> dict:
-    """WikipediaページのHTMLからSNSリンクを抽出する関数"""
-    soup = BeautifulSoup(html_content, 'html.parser')
+# Google検索結果からSNSリンクを抽出
+def extract_sns_links_from_search(search_results: list) -> dict:
     sns_links = {}
-
-    for a_tag in soup.find_all('a', href=True):
-        href = a_tag['href']
-        if 'twitter.com' in href:
-            sns_links['twitter'] = href
-        elif 'instagram.com' in href:
-            sns_links['instagram'] = href
-        elif 'youtube.com' in href:
-            sns_links['youtube'] = href
-        elif 'spotify.com' in href:
-            sns_links['spotify'] = href
-        elif 'music.apple.com' in href:
-            sns_links['apple_music'] = href
-
+    for item in search_results:
+        link = item.get('link', '')
+        if 'twitter.com' in link:
+            sns_links['twitter'] = link
+        elif 'instagram.com' in link:
+            sns_links['instagram'] = link
+        elif 'youtube.com' in link:
+            sns_links['youtube'] = link
+        elif 'spotify.com' in link:
+            sns_links['spotify'] = link
+        elif 'music.apple.com' in link:
+            sns_links['apple_music'] = link
     return sns_links
 
-# 推しの詳細情報を取得する関数
-def fetch_oshi_info(oshi_name: str) -> OshiInfo:
-    wikipedia_url = f"https://en.wikipedia.org/w/api.php"
+# Wikipedia APIを使ってページIDを取得する
+def get_wikipedia_page_id(oshi_name: str) -> str:
+    wikipedia_api_url = "https://en.wikipedia.org/w/api.php"
     params = {
         'action': 'query',
-        'titles': oshi_name,
-        'prop': 'extracts',
-        'exintro': True,
+        'list': 'search',
+        'srsearch': oshi_name,
         'format': 'json'
     }
-    response = requests.get(wikipedia_url, params=params)
+    
+    response = requests.get(wikipedia_api_url, params=params)
+    data = response.json()
+    
+    if 'query' in data and 'search' in data['query']:
+        search_results = data['query']['search']
+        if search_results:
+            # 最初の結果からページIDを取得
+            page_id = search_results[0]['pageid']
+            return page_id
+        else:
+            raise HTTPException(status_code=404, detail="Wikipediaの検索結果が見つかりませんでした")
+    else:
+        raise HTTPException(status_code=500, detail="Wikipedia APIからデータを取得できませんでした")
+
+# WikipediaページのHTMLを取得して外部リンクを抽出する
+def scrape_external_links_from_wikipedia(page_id: str) -> dict:
+    wikipedia_page_url = f"https://en.wikipedia.org/?curid={page_id}"
+    
+    # WikipediaページのHTMLを取得
+    response = requests.get(wikipedia_page_url)
+    soup = BeautifulSoup(response.content, "html.parser")
+    
+    # 外部リンクを抽出 (すべての <a> タグの href 属性)
+    external_links = {}
+    for link in soup.find_all('a', href=True):
+        href = link['href']
+        
+        # 外部リンクかどうかを確認 (Wikipedia内リンクを除外)
+        if href.startswith('http'):
+            if 'twitter.com' in href:
+                external_links['twitter'] = href
+            elif 'instagram.com' in href:
+                external_links['instagram'] = href
+            elif 'youtube.com' in href:
+                external_links['youtube'] = href
+            elif 'spotify.com' in href:
+                external_links['spotify'] = href
+            elif 'music.apple.com' in href:
+                external_links['apple_music'] = href
+    
+    return external_links
+
+# Google Custom Search APIを使って推し情報を取得（「Official Website」を追加して検索）
+def fetch_oshi_info_from_google(oshi_name: str) -> OshiInfo:
+    google_search_url = f"https://www.googleapis.com/customsearch/v1"
+    search_query = f"{oshi_name} Official Website"
+    params = {
+        'q': search_query,
+        'cx': SEARCH_ENGINE_ID,
+        'key': GOOGLE_API_KEY
+    }
+    
+    response = requests.get(google_search_url, params=params)
     data = response.json()
 
-    pages = data.get('query', {}).get('pages', {})
-    page = next(iter(pages.values()), {})
-    summary = page.get('extract', '')
+    search_results = data.get('items', [])
+    
+    if search_results:
+        official_site = search_results[0].get('link', '')
+    else:
+        official_site = '公式サイトが見つかりませんでした'
+    
+    sns_links = extract_sns_links_from_search(search_results)
+    
+    # SNSリンクが見つからない場合のデフォルト処理
+    if not sns_links:
+        sns_links = {"twitter": "N/A", "instagram": "N/A"}
 
-    # WikipediaのHTMLを取得してSNSリンクを抽出
-    page_url = f"https://en.wikipedia.org/wiki/{oshi_name}"
-    page_response = requests.get(page_url)
-    page_html = page_response.text
-    sns_links = extract_sns_links(page_html)
-
+    summary = f"{oshi_name}に関する情報"
+    
     return OshiInfo(
         name=oshi_name,
         summary=summary,
-        official_site=page_url,
+        official_site=official_site,
         sns_links=sns_links
     )
 
-# ユーザー作成エンドポイント
+# ユーザー登録エンドポイント
 @app.post("/register")
 async def register_user(user: UserCreate):
     user_id = str(uuid.uuid4())
@@ -108,13 +164,21 @@ async def register_user(user: UserCreate):
     response = supabase.table('users').insert({
         'id': user_id,
         'email': user.email,
-        'password': hashed_password
+        'password': hashed_password,
+        'username': user.username  # ユーザーネームを登録
     }).execute()
 
     if response.data:
-        return {"message": "User created successfully"}
+        return {
+            "message": "ユーザーが正常に作成されました",
+            "user": {
+                "username": user.username,
+                "email": user.email,
+                "password": user.password  # 注意: パスワードを含めるのはセキュリティ上推奨されません
+            }
+        }
     else:
-        raise HTTPException(status_code=500, detail="User creation failed")
+        raise HTTPException(status_code=500, detail="ユーザー作成に失敗しました")
 
 # ジャンル選択エンドポイント
 @app.post("/select-genres")
@@ -128,17 +192,18 @@ async def select_genres(user_genres: UserGenres):
 
     user = supabase.table('users').select('id').filter('email', 'eq', user_genres.email).execute()
     if not user.data:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
 
     user_id = user.data[0]['id']
     genre_entries = [{'user_id': user_id, 'genre_name': genre} for genre in user_genres.genres]
     response = supabase.table('user_genres').insert(genre_entries).execute()
 
     if response.data:
-        return {"message": "Genre selected successfully", "selected_genres": user_genres.genres}
+        return {"message": "ジャンルが正常に選択されました", "selected_genres": user_genres.genres}
     else:
-        raise HTTPException(status_code=500, detail="failed to preserve Genre")
+        raise HTTPException(status_code=500, detail="ジャンルの保存に失敗しました")
 
+# 推し検索エンドポイント
 @app.post("/search-oshi")
 async def search_oshi(query: SearchQuery):
     wikipedia_url = f"https://en.wikipedia.org/w/api.php"
@@ -157,37 +222,19 @@ async def search_oshi(query: SearchQuery):
         titles = [result['title'] for result in search_results]
         return {'titles': titles}
     else:
-        raise HTTPException(status_code=500, detail="Failed to fetch search results from Wikipedia")
+        raise HTTPException(status_code=500, detail="Wikipediaから検索結果を取得できませんでした")
 
-# 推し選択エンドポイント
 @app.post("/select-oshi")
 async def select_oshi(selected_oshi: SelectedOshi):
+    # ユーザーの取得
     user = supabase.table('users').select('id').filter('email', 'eq', selected_oshi.email).execute()
     if not user.data:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
 
     user_id = user.data[0]['id']
-    oshi_info = fetch_oshi_info(selected_oshi.oshi_name)
 
-    response = supabase.table('oshi').insert({
-        'user_id': user_id,
-        'oshi_name': oshi_info.name,
-        'summary': oshi_info.summary,
-        'official_site': oshi_info.official_site,
-        'sns_links': oshi_info.sns_links
-    }).execute()
+    # 推しの情報を取得
+    oshi_info = fetch_oshi_info_from_google(selected_oshi.oshi_name)
 
-    if response.data:
-        return {"message": "Oshi selected and information saved successfully"}
-    else:
-        raise HTTPException(status_code=500, detail="Failed to save oshi information")
-
-# ルートエンドポイント（オプション）
-@app.get("/")
-async def root():
-    return {"message": "Welcome to FanCloud"}
-
-# アプリケーションを起動するためのスクリプト
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # 推しの情報を取得または更新
+    existing_oshi = supabase.table('oshi').select('id').filter('oshi_name', 'eq', selected_oshi.oshi_name).execute()
