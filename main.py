@@ -64,6 +64,9 @@ class OshiGenresRequest(BaseModel):
     email: str
     oshi_name: str
     genre: str  # List of genres to associate with the oshi     
+
+class UserOshiGenresRequest(BaseModel):
+    email: str    
     
 # 特定のSNSリンクをフィルタリングするためのヘルパー関数
 def extract_sns_links(soup):
@@ -427,3 +430,25 @@ async def save_oshi_genres(request: OshiGenresRequest):
         return {"message": "Oshi genre saved successfully", "genre": genre}
     else:
         raise HTTPException(status_code=500, detail="Failed to save oshi genre")
+
+@app.post("/get-user-oshi-genres")
+async def get_user_oshi_genres(request: UserOshiGenresRequest):
+    email = request.email
+    
+    # Get user_id from email
+    user_data = supabase.table('users').select('id').eq('email', email).execute()
+    if not user_data.data or not user_data.data[0]:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user_id = user_data.data[0]['id']
+    
+    # Get the user's favorite 'oshi' names
+    oshi_data = supabase.table('oshi').select('oshi_name', 'genres').eq('user_id', user_id).execute()
+    
+    if not oshi_data.data:
+        return {"oshi": []}  # No 'oshi' data found
+    
+    # Return the list of oshi names with their genres
+    oshi_genres = [{"oshi_name": oshi['oshi_name'], "genre": oshi['genres']} for oshi in oshi_data.data]
+    
+    return {"oshi": oshi_genres}    
