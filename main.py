@@ -67,6 +67,11 @@ class OshiGenresRequest(BaseModel):
 
 class UserOshiGenresRequest(BaseModel):
     email: str    
+
+class UserOshiAndGenresRequest(BaseModel):
+    email: str
+    oshi_name: str
+    genre: str  # 単一のジャンル 
     
 # 特定のSNSリンクをフィルタリングするためのヘルパー関数
 def extract_sns_links(soup):
@@ -302,18 +307,19 @@ async def fetch_oshi_info(request: OshiRequest):
         "summary": summary
     }
 
-@app.post("/save-oshi-info")
-async def save_oshi_info(request: UserOshiRequest):
+@app.post("/save-oshi-info-and-genres")
+async def save_oshi_info_and_genres(request: UserOshiAndGenresRequest):
     email = request.email
     oshi_name = request.oshi_name
-    
+    genre = request.genre  # 単一のジャンル
+
     # SupabaseからユーザーIDを取得
     user_data = supabase.table('users').select('id').eq('email', email).execute()
     if not user_data.data or not user_data.data[0]:
-        raise HTTPException(status_code=404, detail="User not found")
-    
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+
     user_id = user_data.data[0]['id']
-    
+
     # Wikipedia APIを使って推しのページURLを取得
     params = {
         "action": "query",
@@ -322,30 +328,27 @@ async def save_oshi_info(request: UserOshiRequest):
         "titles": oshi_name,
         "inprop": "url"
     }
-    
+
     response = requests.get("https://ja.wikipedia.org/w/api.php", params=params)
     data = response.json()
-    
+
     pages = data.get("query", {}).get("pages", {})
     if not pages:
-        raise HTTPException(status_code=404, detail="Wikipedia page not found")
+        raise HTTPException(status_code=404, detail="Wikipediaページが見つかりません")
 
     page = next(iter(pages.values()))
     page_url = page.get("fullurl")
-    
+
     if not page_url:
-        raise HTTPException(status_code=404, detail="Wikipedia URL not found")
-    
+        raise HTTPException(status_code=404, detail="WikipediaのURLが見つかりません")
+
     # WikipediaのページHTMLを取得
     html_response = requests.get(page_url)
     soup = BeautifulSoup(html_response.content, 'html.parser')
 
     # クラス名が official-website のリンクを探す
     official_site_tag = soup.find(class_="official-website")
-    official_site_url = official_site_tag.a['href'] if official_site_tag and official_site_tag.a else None
-
-    if not official_site_url:
-        official_site_url = "Official website not found"
+    official_site_url = official_site_tag.a['href'] if official_site_tag and official_site_tag.a else "公式サイトが見つかりません"
 
     # SNSリンクを抽出
     sns_links = extract_sns_links(soup)
@@ -354,82 +357,77 @@ async def save_oshi_info(request: UserOshiRequest):
     infobox = soup.find("table", class_="infobox")
     if infobox:
         image_tag = infobox.find("img")
-        image_url = f"https:{image_tag['src']}" if image_tag else "Image not found"
+        image_url = f"https:{image_tag['src']}" if image_tag else "画像が見つかりません"
     else:
-        image_url = "Image not found"
+        image_url = "画像が見つかりません"
 
     # 推しの職業を取得
     if infobox:
-        profession_tag = infobox.find("th", text="職業")  # 日本語のWikipediaでは「職業」と表示されることが多い
+        profession_tag = infobox.find("th", text="職業")
         if profession_tag:
             profession_data = profession_tag.find_next_sibling("td")
             if profession_data:
-                professions = profession_data.get_text(strip=True).split('、')  # 日本語では職業が「、」で区切られることが多い
-                profession = ', '.join(professions)  # カンマで区切る
+                professions = profession_data.get_text(strip=True).split('、')
+                profession = ', '.join(professions)
             else:
-                profession = "Profession not found"
+                profession = "職業が見つかりません"
         else:
-            profession = "Profession not found"
+            profession = "職業が見つかりません"
     else:
-        profession = "Infobox not found"
-    
+        profession = "Infoboxが見つかりません"
+
     # 推しの概要を取得（ページ本文の最初の段落）
     content_div = soup.find("div", class_="mw-parser-output")
     if content_div:
         summary_tag = content_div.find("p")
-        summary = summary_tag.get_text(strip=True) if summary_tag else "Summary not found"
+        summary = summary_tag.get_text(strip=True) if summary_tag else "概要が見つかりません"
     else:
-        summary = "Content div not found"
-    
-    # Supabaseのoshiテーブルにデータを格納
-    supabase.table('oshi').insert({
-        'user_id': user_id,
-        'oshi_name': oshi_name,
-        'summary': summary,
-        'official_site': official_site_url,
-        'sns_links': sns_links,
-        'image_url': image_url,  # 画像URLを格納
-        'profession': profession  # 職業を格納
-    }).execute()
-    
-    return {"message": "Oshi information saved successfully"}
+        summary = "コンテンツが見つかりません"
 
-@app.post("/save-oshi-genres")
-async def save_oshi_genres(request: OshiGenresRequest):
-    email = request.email
-    oshi_name = request.oshi_name
-    genre = request.genre  # Single genre
-    
-    # SupabaseからユーザーIDを取得
-    user_data = supabase.table('users').select('id').eq('email', email).execute()
-    if not user_data.data or not user_data.data[0]:
-        raise HTTPException(status_code=404, detail="User not found")
-    
-    user_id = user_data.data[0]['id']
-    
     # oshiテーブルで該当の推しが存在するか確認
     oshi_data = supabase.table('oshi').select('id').eq('user_id', user_id).eq('oshi_name', oshi_name).execute()
-    if not oshi_data.data or not oshi_data.data[0]:
-        raise HTTPException(status_code=404, detail="Oshi not found for this user")
 
-    oshi_id = oshi_data.data[0]['id']
-    
-    # ジャンルの検証
-    valid_genres = supabase.table('genres').select('genre_name').execute()
-    valid_genre_names = {genre['genre_name'] for genre in valid_genres.data}
+    if oshi_data.data and oshi_data.data[0]:
+        oshi_id = oshi_data.data[0]['id']
 
-    if genre not in valid_genre_names:
-        raise HTTPException(status_code=400, detail=f"Invalid genre: {genre}")
+        # ジャンルの検証
+        valid_genres = supabase.table('genres').select('genre_name').execute()
+        valid_genre_names = {genre['genre_name'] for genre in valid_genres.data}
 
-    # oshiテーブルの genres カラムに選択されたジャンルを格納
-    response = supabase.table('oshi').update({
-        'genres': genre  # Store the single genre
-    }).eq('id', oshi_id).execute()
-    
-    if response.data:
-        return {"message": "Oshi genre saved successfully", "genre": genre}
+        if genre not in valid_genre_names:
+            raise HTTPException(status_code=400, detail=f"無効なジャンル: {genre}")
+
+        # oshiテーブルの genres カラムに選択されたジャンルを格納
+        response = supabase.table('oshi').update({
+            'summary': summary,
+            'official_site': official_site_url,
+            'sns_links': sns_links,
+            'image_url': image_url,
+            'profession': profession,
+            'genres': genre
+        }).eq('id', oshi_id).execute()
+
+        if response.data:
+            return {"message": "推しの情報とジャンルが正常に保存されました", "genre": genre}
+        else:
+            raise HTTPException(status_code=500, detail="推しの情報とジャンルの保存に失敗しました")
     else:
-        raise HTTPException(status_code=500, detail="Failed to save oshi genre")
+        # oshi情報が存在しない場合は新規追加
+        response = supabase.table('oshi').insert({
+            'user_id': user_id,
+            'oshi_name': oshi_name,
+            'summary': summary,
+            'official_site': official_site_url,
+            'sns_links': sns_links,
+            'image_url': image_url,
+            'profession': profession,
+            'genres': genre
+        }).execute()
+
+        if response.data:
+            return {"message": "推しの情報とジャンルが正常に保存されました", "genre": genre}
+        else:
+            raise HTTPException(status_code=500, detail="推しの情報とジャンルの保存に失敗しました")
 
 @app.post("/get-user-oshi-genres")
 async def get_user_oshi_genres(request: UserOshiGenresRequest):
