@@ -58,8 +58,48 @@ class OshiInfo(BaseModel):
 class OshiRequest(BaseModel):
     oshi_name: str
     
-@app.post("/get-wikipedia-and-official-url")
-async def get_wikipedia_and_official_url(request: OshiRequest):
+# 特定のSNSリンクをフィルタリングするためのヘルパー関数
+def extract_sns_links(soup):
+    sns_links = {
+        "youtube": None,
+        "spotify": None,
+        "soundcloud": None,
+        "x": None,           # X (旧Twitter)
+        "instagram": None,
+        "applemusic": None,
+        "facebook": None
+    }
+    
+    # すべての<a>タグを探す
+    all_links = soup.find_all('a', href=True)
+    
+    for link in all_links:
+        href = link['href']
+        
+        # references クラスのリンクはスキップ
+        if "references" in link.get('class', []):
+            continue
+        
+        # 各SNSのURLを判定して格納
+        if "youtube.com" in href:
+            sns_links["youtube"] = href
+        elif "spotify.com" in href:
+            sns_links["spotify"] = href
+        elif "soundcloud.com" in href:
+            sns_links["soundcloud"] = href
+        elif "twitter.com" in href or "x.com" in href:  # Twitter (X) のドメイン
+            sns_links["x"] = href
+        elif "instagram.com" in href:
+            sns_links["instagram"] = href
+        elif "music.apple.com" in href:
+            sns_links["applemusic"] = href
+        elif "facebook.com" in href:
+            sns_links["facebook"] = href
+    
+    return sns_links
+
+@app.post("/get-wikipedia-and-sns-urls")
+async def get_wikipedia_and_sns_urls(request: OshiRequest):
     oshi_name = request.oshi_name
     wiki_url = "https://ja.wikipedia.org/w/api.php"
     
@@ -95,11 +135,15 @@ async def get_wikipedia_and_official_url(request: OshiRequest):
 
     if not official_site_url:
         official_site_url = "Official website not found"
+
+    # SNSリンクを抽出
+    sns_links = extract_sns_links(soup)
     
-    # Wikipedia URLと公式サイトURLをレスポンスとして返す
+    # Wikipedia URL、公式サイトURL、SNSリンクをレスポンスとして返す
     return {
         "wikipedia_url": page_url,
-        "official_site_url": official_site_url
+        "official_site_url": official_site_url,
+        "sns_links": sns_links
     }
     
 # パスワードのハッシュ化
