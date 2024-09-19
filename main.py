@@ -262,13 +262,35 @@ async def fetch_oshi_info(request: OshiRequest):
     image_tag = soup.find("table", class_="infobox").find("img")
     image_url = f"https:{image_tag['src']}" if image_tag else "Image not found"
     
-    # Wikipedia URL、公式サイトURL、SNSリンク、画像リンクをレスポンスとして返す
+    # 推しの職業を取得
+    infobox = soup.find("table", class_="infobox")
+    if infobox:
+        profession_tag = infobox.find("th", text="職業")  # 日本語のWikipediaでは「職業」と表示されることが多い
+        if profession_tag:
+            profession_data = profession_tag.find_next_sibling("td")
+            if profession_data:
+                professions = profession_data.get_text(strip=True).split('、')  # 日本語では職業が「、」で区切られることが多い
+                profession = ', '.join(professions)  # カンマで区切る
+            else:
+                profession = "Profession not found"
+        else:
+            profession = "Profession not found"
+    else:
+        profession = "Infobox not found"
+    
+    # 推しの概要を取得（ページ本文の最初の段落）
+    summary_tag = soup.find("div", class_="mw-parser-output").find("p")
+    summary = summary_tag.get_text(strip=True) if summary_tag else "Summary not found"
+    
+    # Wikipedia URL、公式サイトURL、SNSリンク、画像リンク、職業、概要をレスポンスとして返す
     return {
         "oshi_name": oshi_name,
         "wikipedia_url": page_url,
         "official_site_url": official_site_url,
         "sns_links": sns_links,
-        "image_url": image_url
+        "image_url": image_url,
+        "profession": profession,
+        "summary": summary
     }
 
 @app.post("/save-oshi-info")
@@ -318,14 +340,47 @@ async def save_oshi_info(request: UserOshiRequest):
 
     # SNSリンクを抽出
     sns_links = extract_sns_links(soup)
+
+    # 推しの画像リンクを取得
+    infobox = soup.find("table", class_="infobox")
+    if infobox:
+        image_tag = infobox.find("img")
+        image_url = f"https:{image_tag['src']}" if image_tag else "Image not found"
+    else:
+        image_url = "Image not found"
+
+    # 推しの職業を取得
+    if infobox:
+        profession_tag = infobox.find("th", text="職業")  # 日本語のWikipediaでは「職業」と表示されることが多い
+        if profession_tag:
+            profession_data = profession_tag.find_next_sibling("td")
+            if profession_data:
+                professions = profession_data.get_text(strip=True).split('、')  # 日本語では職業が「、」で区切られることが多い
+                profession = ', '.join(professions)  # カンマで区切る
+            else:
+                profession = "Profession not found"
+        else:
+            profession = "Profession not found"
+    else:
+        profession = "Infobox not found"
+    
+    # 推しの概要を取得（ページ本文の最初の段落）
+    content_div = soup.find("div", class_="mw-parser-output")
+    if content_div:
+        summary_tag = content_div.find("p")
+        summary = summary_tag.get_text(strip=True) if summary_tag else "Summary not found"
+    else:
+        summary = "Content div not found"
     
     # Supabaseのoshiテーブルにデータを格納
     supabase.table('oshi').insert({
         'user_id': user_id,
         'oshi_name': oshi_name,
-        'summary': "Summary not available",  # summaryが取得できない場合のデフォルト値
+        'summary': summary,
         'official_site': official_site_url,
-        'sns_links': sns_links
+        'sns_links': sns_links,
+        'image_url': image_url,  # 画像URLを格納
+        'profession': profession  # 職業を格納
     }).execute()
     
-    return {"message": "Oshi information saved successfully"}        
+    return {"message": "Oshi information saved successfully"}
