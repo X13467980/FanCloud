@@ -217,6 +217,60 @@ async def search_oshi(query: SearchQuery):
     else:
         raise HTTPException(status_code=500, detail="Wikipediaから検索結果を取得できませんでした")
 
+@app.post("/fetch-oshi-info")
+async def fetch_oshi_info(request: OshiRequest):
+    oshi_name = request.oshi_name
+    wiki_url = "https://ja.wikipedia.org/w/api.php"
+    
+    # Wikipedia APIを使って推しのページURLを取得
+    params = {
+        "action": "query",
+        "format": "json",
+        "prop": "info",
+        "titles": oshi_name,
+        "inprop": "url"
+    }
+    
+    response = requests.get(wiki_url, params=params)
+    data = response.json()
+    
+    pages = data.get("query", {}).get("pages", {})
+    if not pages:
+        raise HTTPException(status_code=404, detail="Wikipedia page not found")
+
+    page = next(iter(pages.values()))
+    page_url = page.get("fullurl")
+    
+    if not page_url:
+        raise HTTPException(status_code=404, detail="Wikipedia URL not found")
+    
+    # WikipediaのページHTMLを取得
+    html_response = requests.get(page_url)
+    soup = BeautifulSoup(html_response.content, 'html.parser')
+
+    # クラス名が official-website のリンクを探す
+    official_site_tag = soup.find(class_="official-website")
+    official_site_url = official_site_tag.a['href'] if official_site_tag and official_site_tag.a else None
+
+    if not official_site_url:
+        official_site_url = "Official website not found"
+    
+    # SNSリンクを抽出
+    sns_links = extract_sns_links(soup)
+    
+    # 推しの画像リンクを取得
+    image_tag = soup.find("table", class_="infobox").find("img")
+    image_url = f"https:{image_tag['src']}" if image_tag else "Image not found"
+    
+    # Wikipedia URL、公式サイトURL、SNSリンク、画像リンクをレスポンスとして返す
+    return {
+        "oshi_name": oshi_name,
+        "wikipedia_url": page_url,
+        "official_site_url": official_site_url,
+        "sns_links": sns_links,
+        "image_url": image_url
+    }
+
 @app.post("/save-oshi-info")
 async def save_oshi_info(request: UserOshiRequest):
     username = request.username
@@ -274,53 +328,4 @@ async def save_oshi_info(request: UserOshiRequest):
         'sns_links': sns_links
     }).execute()
     
-    return {"message": "Oshi information saved successfully"}    
-
-@app.post("/fetch-oshi-info")
-async def fetch_oshi_info(request: OshiRequest):
-    oshi_name = request.oshi_name
-    wiki_url = "https://ja.wikipedia.org/w/api.php"
-    
-    # Wikipedia APIを使って推しのページURLを取得
-    params = {
-        "action": "query",
-        "format": "json",
-        "prop": "info",
-        "titles": oshi_name,
-        "inprop": "url"
-    }
-    
-    response = requests.get(wiki_url, params=params)
-    data = response.json()
-    
-    pages = data.get("query", {}).get("pages", {})
-    if not pages:
-        raise HTTPException(status_code=404, detail="Wikipedia page not found")
-
-    page = next(iter(pages.values()))
-    page_url = page.get("fullurl")
-    
-    if not page_url:
-        raise HTTPException(status_code=404, detail="Wikipedia URL not found")
-    
-    # WikipediaのページHTMLを取得
-    html_response = requests.get(page_url)
-    soup = BeautifulSoup(html_response.content, 'html.parser')
-
-    # クラス名が official-website のリンクを探す
-    official_site_tag = soup.find(class_="official-website")
-    official_site_url = official_site_tag.a['href'] if official_site_tag and official_site_tag.a else None
-
-    if not official_site_url:
-        official_site_url = "Official website not found"
-
-    # SNSリンクを抽出
-    sns_links = extract_sns_links(soup)
-    
-    # Wikipedia URL、公式サイトURL、SNSリンクをレスポンスとして返す
-    return {
-        "oshi_name": oshi_name,
-        "wikipedia_url": page_url,
-        "official_site_url": official_site_url,
-        "sns_links": sns_links
-    }
+    return {"message": "Oshi information saved successfully"}        
