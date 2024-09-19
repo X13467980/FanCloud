@@ -56,6 +56,8 @@ class UserOshiRequest(BaseModel):
     username: str
     oshi_name: str  
     
+class EmailRequest(BaseModel):
+    email: str    
     
 # 特定のSNSリンクをフィルタリングするためのヘルパー関数
 def extract_sns_links(soup):
@@ -302,3 +304,23 @@ async def search_oshi(query: SearchQuery):
         return {'titles': titles}
     else:
         raise HTTPException(status_code=500, detail="Wikipediaから検索結果を取得できませんでした")
+    
+@app.post("/get-user-genres")
+async def get_user_genres(request: EmailRequest):
+    email = request.email
+    
+    # SupabaseからユーザーIDを取得
+    user_data = supabase.table('users').select('id').eq('email', email).execute()
+    if not user_data.data or not user_data.data[0]:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user_id = user_data.data[0]['id']
+    
+    # user_genresテーブルからジャンルを取得
+    genres_data = supabase.table('user_genres').select('genre_name').eq('user_id', user_id).execute()
+    if not genres_data.data:
+        return []  # ジャンルが見つからない場合は空のリストを返す
+    
+    genres = [genre['genre_name'] for genre in genres_data.data]
+    
+    return genres 
