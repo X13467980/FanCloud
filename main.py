@@ -70,7 +70,15 @@ class UserOshiGenresRequest(BaseModel):
     
 # 特定のSNSリンクをフィルタリングするためのヘルパー関数
 def extract_sns_links(soup):
-    sns_links = []
+    sns_links = {
+        "youtube": None,
+        "spotify": None,
+        "soundcloud": None,
+        "x": None,           # X (旧Twitter)
+        "instagram": None,
+        "applemusic": None,
+        "facebook": None
+    }
     
     # すべての<a>タグを探す
     all_links = soup.find_all('a', href=True)
@@ -84,19 +92,19 @@ def extract_sns_links(soup):
         
         # 各SNSのURLを判定して格納
         if "youtube.com" in href:
-            sns_links.append({"name": "youtube", "url": href})
+            sns_links["youtube"] = href
         elif "spotify.com" in href:
-            sns_links.append({"name": "spotify", "url": href})
+            sns_links["spotify"] = href
         elif "soundcloud.com" in href:
-            sns_links.append({"name": "soundcloud", "url": href})
+            sns_links["soundcloud"] = href
         elif "twitter.com" in href or "x.com" in href:  # Twitter (X) のドメイン
-            sns_links.append({"name": "x", "url": href})
+            sns_links["x"] = href
         elif "instagram.com" in href:
-            sns_links.append({"name": "instagram", "url": href})
+            sns_links["instagram"] = href
         elif "music.apple.com" in href:
-            sns_links.append({"name": "applemusic", "url": href})
+            sns_links["applemusic"] = href
         elif "facebook.com" in href:
-            sns_links.append({"name": "facebook", "url": href})
+            sns_links["facebook"] = href
     
     return sns_links
     
