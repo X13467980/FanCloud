@@ -433,20 +433,23 @@ async def save_oshi_info_and_genres(request: UserOshiAndGenresRequest):
 async def get_user_oshi_genres(request: UserOshiGenresRequest):
     email = request.email
     
-    # Get user_id from email
+    # ユーザーIDをメールから取得
     user_data = supabase.table('users').select('id').eq('email', email).execute()
     if not user_data.data or not user_data.data[0]:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
     
     user_id = user_data.data[0]['id']
     
-    # Get the user's favorite 'oshi' names
-    oshi_data = supabase.table('oshi').select('oshi_name', 'genres').eq('user_id', user_id).execute()
+    # ユーザーの推し情報を取得
+    oshi_data = supabase.table('oshi').select('oshi_name', 'genres', 'image_url').eq('user_id', user_id).execute()
     
     if not oshi_data.data:
-        return {"oshi": []}  # No 'oshi' data found
+        return {"oshi": []}  # 推し情報が見つからない場合
     
-    # Return the list of oshi names with their genres
-    oshi_genres = [{"oshi_name": oshi['oshi_name'], "genre": oshi['genres']} for oshi in oshi_data.data]
+    # 推しの名前、ジャンル、画像URLを含むリストを返す
+    oshi_genres = [
+        {"oshi_name": oshi['oshi_name'], "genre": oshi['genres'], "image_url": oshi['image_url']}
+        for oshi in oshi_data.data
+    ]
     
-    return {"oshi": oshi_genres}    
+    return {"oshi": oshi_genres}
