@@ -8,6 +8,7 @@ import uuid
 import hashlib
 import requests
 from bs4 import BeautifulSoup
+import json
 
 # 環境変数をロード
 load_dotenv()
@@ -57,7 +58,12 @@ class UserOshiRequest(BaseModel):
     oshi_name: str  
     
 class EmailRequest(BaseModel):
-    email: str    
+    email: str   
+    
+class OshiGenresRequest(BaseModel):
+    email: str
+    oshi_name: str
+    genre: str  # List of genres to associate with the oshi     
     
 # 特定のSNSリンクをフィルタリングするためのヘルパー関数
 def extract_sns_links(soup):
@@ -384,3 +390,40 @@ async def save_oshi_info(request: UserOshiRequest):
     }).execute()
     
     return {"message": "Oshi information saved successfully"}
+
+@app.post("/save-oshi-genres")
+async def save_oshi_genres(request: OshiGenresRequest):
+    email = request.email
+    oshi_name = request.oshi_name
+    genre = request.genre  # Single genre
+    
+    # SupabaseからユーザーIDを取得
+    user_data = supabase.table('users').select('id').eq('email', email).execute()
+    if not user_data.data or not user_data.data[0]:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user_id = user_data.data[0]['id']
+    
+    # oshiテーブルで該当の推しが存在するか確認
+    oshi_data = supabase.table('oshi').select('id').eq('user_id', user_id).eq('oshi_name', oshi_name).execute()
+    if not oshi_data.data or not oshi_data.data[0]:
+        raise HTTPException(status_code=404, detail="Oshi not found for this user")
+
+    oshi_id = oshi_data.data[0]['id']
+    
+    # ジャンルの検証
+    valid_genres = supabase.table('genres').select('genre_name').execute()
+    valid_genre_names = {genre['genre_name'] for genre in valid_genres.data}
+
+    if genre not in valid_genre_names:
+        raise HTTPException(status_code=400, detail=f"Invalid genre: {genre}")
+
+    # oshiテーブルの genres カラムに選択されたジャンルを格納
+    response = supabase.table('oshi').update({
+        'genres': genre  # Store the single genre
+    }).eq('id', oshi_id).execute()
+    
+    if response.data:
+        return {"message": "Oshi genre saved successfully", "genre": genre}
+    else:
+        raise HTTPException(status_code=500, detail="Failed to save oshi genre")
