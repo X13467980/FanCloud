@@ -150,23 +150,6 @@ async def get_wikipedia_and_sns_urls(request: OshiRequest):
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
-# Google検索結果からSNSリンクを抽出
-def extract_sns_links_from_search(search_results: list) -> dict:
-    sns_links = {}
-    for item in search_results:
-        link = item.get('link', '')
-        if 'twitter.com' in link:
-            sns_links['twitter'] = link
-        elif 'instagram.com' in link:
-            sns_links['instagram'] = link
-        elif 'youtube.com' in link:
-            sns_links['youtube'] = link
-        elif 'spotify.com' in link:
-            sns_links['spotify'] = link
-        elif 'music.apple.com' in link:
-            sns_links['apple_music'] = link
-    return sns_links
-
 # Wikipedia APIを使ってページIDを取得する
 def get_wikipedia_page_id(oshi_name: str) -> str:
     wikipedia_api_url = "https://en.wikipedia.org/w/api.php"
@@ -190,69 +173,6 @@ def get_wikipedia_page_id(oshi_name: str) -> str:
             raise HTTPException(status_code=404, detail="Wikipediaの検索結果が見つかりませんでした")
     else:
         raise HTTPException(status_code=500, detail="Wikipedia APIからデータを取得できませんでした")
-
-# WikipediaページのHTMLを取得して外部リンクを抽出する
-def scrape_external_links_from_wikipedia(page_id: str) -> dict:
-    wikipedia_page_url = f"https://en.wikipedia.org/?curid={page_id}"
-    
-    # WikipediaページのHTMLを取得
-    response = requests.get(wikipedia_page_url)
-    soup = BeautifulSoup(response.content, "html.parser")
-    
-    # 外部リンクを抽出 (すべての <a> タグの href 属性)
-    external_links = {}
-    for link in soup.find_all('a', href=True):
-        href = link['href']
-        
-        # 外部リンクかどうかを確認 (Wikipedia内リンクを除外)
-        if href.startswith('http'):
-            if 'twitter.com' in href:
-                external_links['twitter'] = href
-            elif 'instagram.com' in href:
-                external_links['instagram'] = href
-            elif 'youtube.com' in href:
-                external_links['youtube'] = href
-            elif 'spotify.com' in href:
-                external_links['spotify'] = href
-            elif 'music.apple.com' in href:
-                external_links['apple_music'] = href
-    
-    return external_links
-
-# Google Custom Search APIを使って推し情報を取得（「Official Website」を追加して検索）
-def fetch_oshi_info_from_google(oshi_name: str) -> OshiInfo:
-    google_search_url = f"https://www.googleapis.com/customsearch/v1"
-    search_query = f"{oshi_name} Official Website"
-    params = {
-        'q': search_query,
-        'cx': SEARCH_ENGINE_ID,
-        'key': GOOGLE_API_KEY
-    }
-    
-    response = requests.get(google_search_url, params=params)
-    data = response.json()
-
-    search_results = data.get('items', [])
-    
-    if search_results:
-        official_site = search_results[0].get('link', '')
-    else:
-        official_site = '公式サイトが見つかりませんでした'
-    
-    sns_links = extract_sns_links_from_search(search_results)
-    
-    # SNSリンクが見つからない場合のデフォルト処理
-    if not sns_links:
-        sns_links = {"twitter": "N/A", "instagram": "N/A"}
-
-    summary = f"{oshi_name}に関する情報"
-    
-    return OshiInfo(
-        name=oshi_name,
-        summary=summary,
-        official_site=official_site,
-        sns_links=sns_links
-    )
 
 # ユーザー登録エンドポイント
 @app.post("/register")
@@ -322,18 +242,3 @@ async def search_oshi(query: SearchQuery):
         return {'titles': titles}
     else:
         raise HTTPException(status_code=500, detail="Wikipediaから検索結果を取得できませんでした")
-
-@app.post("/select-oshi")
-async def select_oshi(selected_oshi: SelectedOshi):
-    # ユーザーの取得
-    user = supabase.table('users').select('id').filter('email', 'eq', selected_oshi.email).execute()
-    if not user.data:
-        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
-
-    user_id = user.data[0]['id']
-
-    # 推しの情報を取得
-    oshi_info = fetch_oshi_info_from_google(selected_oshi.oshi_name)
-
-    # 推しの情報を取得または更新
-    existing_oshi = supabase.table('oshi').select('id').filter('oshi_name', 'eq', selected_oshi.oshi_name).execute()
