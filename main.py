@@ -413,7 +413,7 @@ async def save_oshi_info_and_genres(request: UserOshiAndGenresRequest):
     else:
         summary = "コンテンツが見つかりません"
 
-    # oshiテーブルで該当の推しが存在するか確認
+    # 同じユーザーが既にその推しを登録しているか確認（user_idとoshi_nameの組み合わせで確認）
     oshi_data = supabase.table('oshi').select('id').eq('user_id', user_id).eq('oshi_name', oshi_name).execute()
 
     if oshi_data.data and oshi_data.data[0]:
