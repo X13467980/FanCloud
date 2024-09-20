@@ -193,7 +193,8 @@ async def login(user: UserLogin):
 
     # ログイン成功時のレスポンス
     return {
-            "username": response.data[0]['username']
+            "username": response.data[0]['username'],
+            "email": user.email
     }
 
 # ジャンル選択エンドポイント
