@@ -39,6 +39,10 @@ class UserCreate(BaseModel):
     email: str
     password: str
     
+class UserLogin(BaseModel):
+    email: str
+    password: str    
+    
 class UserGenres(BaseModel):
     email: str
     genres: list[str]
@@ -166,6 +170,35 @@ async def register_user(user: UserCreate):
         }
     else:
         raise HTTPException(status_code=500, detail="ユーザー作成に失敗しました")
+
+# ユーザーログインエンドポイント
+@app.post("/login")
+async def login(user: UserLogin):
+    # Supabaseからユーザーのデータを取得
+    response = supabase.table('users').select('email', 'password', 'username').eq('email', user.email).execute()
+
+    # ユーザーが見つからない場合
+    if not response.data or not response.data[0]:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # データベースに保存されているハッシュ化されたパスワード
+    saved_password_hash = response.data[0]['password']
+
+    # 入力されたパスワードをハッシュ化
+    input_password_hash = hash_password(user.password)
+
+    # ハッシュ化されたパスワードを比較
+    if saved_password_hash != input_password_hash:
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
+    # ログイン成功時のレスポンス
+    return {
+        "message": "Login successful",
+        "user": {
+            "email": user.email,
+            "username": response.data[0]['username']
+        }
+    }
 
 # ジャンル選択エンドポイント
 @app.post("/select-genres")
