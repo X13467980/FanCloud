@@ -431,6 +431,7 @@ async def save_oshi_info_and_genres(request: UserOshiAndGenresRequest):
 
 @app.post("/get-user-oshi-genres")
 async def get_user_oshi_genres(request: UserOshiGenresRequest):
+    
     email = request.email
     
     # ユーザーIDをメールから取得
@@ -453,3 +454,33 @@ async def get_user_oshi_genres(request: UserOshiGenresRequest):
     ]
     
     return {"oshi": oshi_genres}
+
+@app.post("/get-oshi-info")
+async def get_oshi_info(request: UserOshiRequest):
+    email = request.email
+    oshi_name = request.oshi_name
+    
+    # Fetch the user by email
+    user_data = supabase.table('users').select('id').eq('email', email).execute()
+    if not user_data.data or not user_data.data[0]:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user_id = user_data.data[0]['id']
+    
+    # Fetch the oshi information from the oshi table
+    oshi_data = supabase.table('oshi').select('*').eq('user_id', user_id).eq('oshi_name', oshi_name).execute()
+    
+    if not oshi_data.data or not oshi_data.data[0]:
+        raise HTTPException(status_code=404, detail="Oshi not found for this user")
+    
+    # Return oshi's information
+    oshi_info = oshi_data.data[0]
+    return {
+        "oshi_name": oshi_info['oshi_name'],
+        "summary": oshi_info['summary'],
+        "official_site": oshi_info['official_site'],
+        "sns_links": oshi_info['sns_links'],
+        "image_url": oshi_info['image_url'],
+        "profession": oshi_info['profession'],
+        "genres": oshi_info['genres']
+    }
