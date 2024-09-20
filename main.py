@@ -8,7 +8,6 @@ import uuid
 import hashlib
 import requests
 from bs4 import BeautifulSoup
-import json
 
 # 環境変数をロード
 load_dotenv()
@@ -33,9 +32,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Pydanticのモデル
 class UserCreate(BaseModel):
-    username: str  # ユーザーネームを追加
+    username: str
     email: str
     password: str
     
@@ -67,7 +65,7 @@ class EmailRequest(BaseModel):
 class OshiGenresRequest(BaseModel):
     email: str
     oshi_name: str
-    genre: str  # List of genres to associate with the oshi     
+    genre: str       
 
 class UserOshiGenresRequest(BaseModel):
     email: str    
@@ -75,7 +73,7 @@ class UserOshiGenresRequest(BaseModel):
 class UserOshiAndGenresRequest(BaseModel):
     email: str
     oshi_name: str
-    genre: str  # 単一のジャンル 
+    genre: str   
     
 # 特定のSNSリンクをフィルタリングするためのヘルパー関数
 def extract_sns_links(soup):
@@ -145,7 +143,6 @@ def get_wikipedia_page_id(oshi_name: str) -> str:
     else:
         raise HTTPException(status_code=500, detail="Wikipedia APIからデータを取得できませんでした")
 
-
 # ユーザー登録エンドポイント
 @app.post("/register")
 async def register_user(user: UserCreate):
@@ -179,7 +176,7 @@ async def login(user: UserLogin):
 
     # ユーザーが見つからない場合
     if not response.data or not response.data[0]:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="emailまたはpasswordが違います")
 
     # データベースに保存されているハッシュ化されたパスワード
     saved_password_hash = response.data[0]['password']
@@ -189,7 +186,7 @@ async def login(user: UserLogin):
 
     # ハッシュ化されたパスワードを比較
     if saved_password_hash != input_password_hash:
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="emailまたはpasswordが違います")
 
     # ログイン成功時のレスポンス
     return {
@@ -227,7 +224,7 @@ async def get_user_genres(request: EmailRequest):
     # SupabaseからユーザーIDを取得
     user_data = supabase.table('users').select('id').eq('email', email).execute()
     if not user_data.data or not user_data.data[0]:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
     
     user_id = user_data.data[0]['id']
     
@@ -280,13 +277,13 @@ async def fetch_oshi_info(request: OshiRequest):
     
     pages = data.get("query", {}).get("pages", {})
     if not pages:
-        raise HTTPException(status_code=404, detail="Wikipedia page not found")
+        raise HTTPException(status_code=404, detail="Wikipediaのページが見つかりませんでした")
 
     page = next(iter(pages.values()))
     page_url = page.get("fullurl")
     
     if not page_url:
-        raise HTTPException(status_code=404, detail="Wikipedia URL not found")
+        raise HTTPException(status_code=404, detail="WikipediaのURLが見つかりませんでした")
     
     # WikipediaのページHTMLを取得
     html_response = requests.get(page_url)
@@ -297,7 +294,7 @@ async def fetch_oshi_info(request: OshiRequest):
     official_site_url = official_site_tag.a['href'] if official_site_tag and official_site_tag.a else None
 
     if not official_site_url:
-        official_site_url = "Official website not found"
+        official_site_url = "Official websiteが見つかりませんでした"
     
     # SNSリンクを抽出
     sns_links = extract_sns_links(soup)
@@ -310,7 +307,7 @@ async def fetch_oshi_info(request: OshiRequest):
         if image_url == "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Flag_of_Japan.svg/25px-Flag_of_Japan.svg.png":
             image_url = "https://www.shoshinsha-design.com/wp-content/uploads/2020/05/%E3%83%8E%E3%83%BC%E3%82%A4%E3%83%A1%E3%83%BC%E3%82%B7%E3%82%99-760x460.png"  # ここに置き換える画像のURLを入力
     else:
-        image_url = "Image not found"
+        image_url = "画像が見つかりませんでした"
         
     # 推しの職業を取得
     infobox = soup.find("table", class_="infobox")
@@ -322,15 +319,15 @@ async def fetch_oshi_info(request: OshiRequest):
                 professions = profession_data.get_text(strip=True).split('、')  # 日本語では職業が「、」で区切られることが多い
                 profession = ', '.join(professions)  # カンマで区切る
             else:
-                profession = "Profession not found"
+                profession = "職業が見つかりませんでした"
         else:
-            profession = "Profession not found"
+            profession = "職業が見つかりませんでした"
     else:
-        profession = "Infobox not found"
+        profession = "職業が見つかりませんでした"
     
     # 推しの概要を取得（ページ本文の最初の段落）
     summary_tag = soup.find("div", class_="mw-parser-output").find("p")
-    summary = summary_tag.get_text(strip=True) if summary_tag else "Summary not found"
+    summary = summary_tag.get_text(strip=True) if summary_tag else "概要が見つかりませんでした"
     
     # Wikipedia URL、公式サイトURL、SNSリンク、画像リンク、職業、概要をレスポンスとして返す
     return {
@@ -502,20 +499,17 @@ async def get_oshi_info(request: UserOshiRequest):
     email = request.email
     oshi_name = request.oshi_name
     
-    # Fetch the user by email
     user_data = supabase.table('users').select('id').eq('email', email).execute()
     if not user_data.data or not user_data.data[0]:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="Userが見つかりません")
     
     user_id = user_data.data[0]['id']
     
-    # Fetch the oshi information from the oshi table
     oshi_data = supabase.table('oshi').select('*').eq('user_id', user_id).eq('oshi_name', oshi_name).execute()
     
     if not oshi_data.data or not oshi_data.data[0]:
-        raise HTTPException(status_code=404, detail="Oshi not found for this user")
+        raise HTTPException(status_code=404, detail="このユーザーの推しが見つかりませんでした")
     
-    # Return oshi's information
     oshi_info = oshi_data.data[0]
     return {
         "oshi_name": oshi_info['oshi_name'],
