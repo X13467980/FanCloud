@@ -8,6 +8,9 @@ import uuid
 import hashlib
 import requests
 from bs4 import BeautifulSoup
+from model.user import UserCreate, UserLogin, EmailRequest 
+from model.oshi import SearchQuery, OshiRequest, UserOshiRequest, UserOshiAndGenresRequest
+from model.genres import UserGenres, UserOshiGenresRequest
 
 # 環境変数をロード
 load_dotenv()
@@ -30,50 +33,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
-
-class UserCreate(BaseModel):
-    username: str
-    email: str
-    password: str
-    
-class UserLogin(BaseModel):
-    email: str
-    password: str    
-    
-class UserGenres(BaseModel):
-    email: str
-    genres: list[str]
-
-class SearchQuery(BaseModel):
-    query: str
-
-class SelectedOshi(BaseModel):
-    email: str
-    oshi_name: str
-
-class OshiRequest(BaseModel):
-    oshi_name: str
-    
-class UserOshiRequest(BaseModel):
-    email: str
-    oshi_name: str  
-    
-class EmailRequest(BaseModel):
-    email: str   
-    
-class OshiGenresRequest(BaseModel):
-    email: str
-    oshi_name: str
-    genre: str       
-
-class UserOshiGenresRequest(BaseModel):
-    email: str    
-
-class UserOshiAndGenresRequest(BaseModel):
-    email: str
-    oshi_name: str
-    genre: str   
+) 
     
 # 特定のSNSリンクをフィルタリングするためのヘルパー関数
 def extract_sns_links(soup):
@@ -81,7 +41,7 @@ def extract_sns_links(soup):
         "youtube": None,
         "spotify": None,
         "soundcloud": None,
-        "x": None,           # X (旧Twitter)
+        "x": None,
         "instagram": None,
         "applemusic": None,
         "facebook": None
@@ -104,7 +64,7 @@ def extract_sns_links(soup):
             sns_links["spotify"] = href
         elif "soundcloud.com" in href:
             sns_links["soundcloud"] = href
-        elif "twitter.com" in href or "x.com" in href:  # Twitter (X) のドメイン
+        elif "twitter.com" in href or "x.com" in href:
             sns_links["x"] = href
         elif "instagram.com" in href:
             sns_links["instagram"] = href
@@ -239,7 +199,7 @@ async def search_oshi(query: SearchQuery):
 @app.post("/fetch-oshi-info")
 async def fetch_oshi_info(request: OshiRequest):
     oshi_name = request.oshi_name
-    wiki_url = "https://ja.wikipedia.org/w/api.php"
+    wiki_url = "https://en.wikipedia.org/w/api.php"
     
     # Wikipedia APIを使って推しのページURLを取得
     params = {
@@ -340,7 +300,7 @@ async def save_oshi_info_and_genres(request: UserOshiAndGenresRequest):
         "inprop": "url"
     }
 
-    response = requests.get("https://ja.wikipedia.org/w/api.php", params=params)
+    response = requests.get("https://en.wikipedia.org/w/api.php", params=params)
     data = response.json()
 
     pages = data.get("query", {}).get("pages", {})
