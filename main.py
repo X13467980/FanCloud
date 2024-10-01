@@ -216,7 +216,8 @@ async def get_user_genres(request: EmailRequest):
 # 推し検索エンドポイント
 @app.post("/search-oshi")
 async def search_oshi(query: SearchQuery):
-    wikipedia_url = f"https://{lang}.wikipedia.org/w/api.php"
+    wikipedia_url = "https://ja.wikipedia.org/w/api.php"
+
     params = {
         'action': 'query',
         'list': 'search',
@@ -224,6 +225,7 @@ async def search_oshi(query: SearchQuery):
         'format': 'json',
         'srlimit': 4
     }
+
     response = requests.get(wikipedia_url, params=params)
     data = response.json()
 
