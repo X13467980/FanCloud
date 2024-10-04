@@ -458,3 +458,30 @@ async def get_oshi_info(request: UserOshiRequest):
         "profession": oshi_info['profession'],
         "genres": oshi_info['genres']
     }
+
+@app.post("/delete-oshi")
+async def delete_oshi(request: UserOshiRequest):
+    email = request.email
+    oshi_name = request.oshi_name
+
+    # ユーザーIDを取得する
+    user_data = supabase.table('users').select('id').eq('email', email).execute()
+    if not user_data.data or not user_data.data[0]:
+        raise HTTPException(status_code=404, detail="ユーザーが見つかりません")
+
+    user_id = user_data.data[0]['id']
+
+    # 該当する推しが存在するか確認
+    oshi_data = supabase.table('oshi').select('id').eq('user_id', user_id).eq('oshi_name', oshi_name).execute()
+    if not oshi_data.data or not oshi_data.data[0]:
+        raise HTTPException(status_code=404, detail="該当する推しが見つかりません")
+
+    oshi_id = oshi_data.data[0]['id']
+
+    # 推しを削除
+    response = supabase.table('oshi').delete().eq('id', oshi_id).execute()
+
+    if response.data:
+        return {"message": f"{oshi_name} の推しが正常に削除されました"}
+    else:
+        raise HTTPException(status_code=500, detail="推しの削除に失敗しました")
