@@ -241,8 +241,8 @@ async def fetch_oshi_info(request: OshiRequest):
     image_tag = soup.find("table", class_="infobox").find("img")
     if image_tag:
         image_url = f"https:{image_tag['src']}"
-        # 特定のURLを検出した場合、別の画像に置き換える
-        if image_url == "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Flag_of_Japan.svg/25px-Flag_of_Japan.svg.png":
+        # URLに"Flag_of"が含まれている場合、別の画像に置き換える
+        if "Flag_of" in image_url:
             image_url = "https://www.shoshinsha-design.com/wp-content/uploads/2020/05/%E3%83%8E%E3%83%BC%E3%82%A4%E3%83%A1%E3%83%BC%E3%82%B7%E3%82%99-760x460.png"  # ここに置き換える画像のURLを入力
     else:
         image_url = "画像が見つかりませんでした"
@@ -330,13 +330,13 @@ async def save_oshi_info_and_genres(request: UserOshiAndGenresRequest):
         image_tag = infobox.find("img")
         if image_tag:
             image_url = f"https:{image_tag['src']}"
-            # 特定のURLを検出した場合、別の画像に置き換える
-            if image_url == "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/Flag_of_Japan.svg/25px-Flag_of_Japan.svg.png":
+            # URLに"Flag_of"が含まれている場合、別の画像に置き換える
+            if "Flag_of" in image_url:
                 image_url = "https://www.shoshinsha-design.com/wp-content/uploads/2020/05/%E3%83%8E%E3%83%BC%E3%82%A4%E3%83%A1%E3%83%BC%E3%82%B7%E3%82%99-760x460.png"  # ここに置き換える画像のURLを入力
         else:
             image_url = "画像が見つかりません"
     else:
-        image_url = "画像が見つかりません"
+        image_url = "画像が見つかりません"  
 
     # 推しの職業を取得
     if infobox:
