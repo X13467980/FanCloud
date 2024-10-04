@@ -199,7 +199,7 @@ async def search_oshi(query: SearchQuery):
 @app.post("/fetch-oshi-info")
 async def fetch_oshi_info(request: OshiRequest):
     oshi_name = request.oshi_name
-    wiki_url = "https://en.wikipedia.org/w/api.php"
+    wiki_url = "https://ja.wikipedia.org/w/api.php"
     
     # Wikipedia APIを使って推しのページURLを取得
     params = {
@@ -300,7 +300,7 @@ async def save_oshi_info_and_genres(request: UserOshiAndGenresRequest):
         "inprop": "url"
     }
 
-    response = requests.get("https://en.wikipedia.org/w/api.php", params=params)
+    response = requests.get("https://ja.wikipedia.org/w/api.php", params=params)
     data = response.json()
 
     pages = data.get("query", {}).get("pages", {})
