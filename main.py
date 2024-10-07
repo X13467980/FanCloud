@@ -485,3 +485,4 @@ async def delete_oshi(request: UserOshiRequest):
         return {"message": f"{oshi_name} の推しが正常に削除されました"}
     else:
         raise HTTPException(status_code=500, detail="推しの削除に失敗しました")
+    
