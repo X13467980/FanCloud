@@ -29,11 +29,15 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://fancloud.vercel.app"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-) 
+    # CORSミドルウェアを追加して、特定のオリジンからのリクエストを許可する
+    allow_origins=[
+        "http://localhost:3000",  # ローカル開発環境
+        "https://fancloud.vercel.app"  # 本番環境のデプロイURL
+    ],
+    allow_credentials=True,  # 認証情報（クッキーやAuthorizationヘッダーなど）を許可
+    allow_methods=["*"],  # すべてのHTTPメソッド（GET, POST, PUT, DELETEなど）を許可
+    allow_headers=["*"],  # すべてのHTTPヘッダーを許可
+)
     
 # 特定のSNSリンクをフィルタリングするためのヘルパー関数
 def extract_sns_links(soup):
@@ -153,6 +157,7 @@ async def select_genres(user_genres: UserGenres):
     else:
         raise HTTPException(status_code=500, detail="ジャンルの保存に失敗しました")
 
+# ユーザーのジャンル取得エンドポイント
 @app.post("/get-user-genres")
 async def get_user_genres(request: EmailRequest):
     email = request.email
@@ -196,6 +201,7 @@ async def search_oshi(query: SearchQuery):
     else:
         raise HTTPException(status_code=500, detail="Wikipediaから検索結果を取得できませんでした")
 
+# 推し情報取得エンドポイント
 @app.post("/fetch-oshi-info")
 async def fetch_oshi_info(request: OshiRequest):
     oshi_name = request.oshi_name
@@ -278,6 +284,7 @@ async def fetch_oshi_info(request: OshiRequest):
         "summary": summary
     }
 
+# 推し情報とジャンル保存エンドポイント
 @app.post("/save-oshi-info-and-genres")
 async def save_oshi_info_and_genres(request: UserOshiAndGenresRequest):
     email = request.email
@@ -406,6 +413,7 @@ async def save_oshi_info_and_genres(request: UserOshiAndGenresRequest):
         else:
             raise HTTPException(status_code=500, detail="推しの情報とジャンルの保存に失敗しました")
 
+# ユーザーの推しとジャンル情報を取得するエンドポイント
 @app.post("/get-user-oshi-genres")
 async def get_user_oshi_genres(request: UserOshiGenresRequest):
     
@@ -432,6 +440,7 @@ async def get_user_oshi_genres(request: UserOshiGenresRequest):
     
     return {"oshi": oshi_genres}
 
+# 推し情報取得エンドポイント
 @app.post("/get-oshi-info")
 async def get_oshi_info(request: UserOshiRequest):
     email = request.email
@@ -459,6 +468,7 @@ async def get_oshi_info(request: UserOshiRequest):
         "genres": oshi_info['genres']
     }
 
+# 推し削除エンドポイント
 @app.post("/delete-oshi")
 async def delete_oshi(request: UserOshiRequest):
     email = request.email
