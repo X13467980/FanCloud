@@ -6,3 +6,6 @@ class UserGenres(BaseModel):
 
 class UserOshiGenresRequest(BaseModel):
     email: str   
+    
+class EmailRequest(BaseModel):
+    email: str 
