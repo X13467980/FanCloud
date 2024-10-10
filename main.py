@@ -33,6 +33,6 @@ app.add_middleware(
     allow_headers=["*"],  # すべてのHTTPヘッダーを許可
 ) 
 
-app.include_router(user_router, prefix="/users")
-app.include_router(genre_router, prefix="/genres")
+app.include_router(user_router, prefix="/user")
+app.include_router(genre_router, prefix="/genre")
 app.include_router(oshi_router, prefix="/oshi")
