@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 from model.user import UserCreate, UserLogin, EmailRequest 
 from model.oshi import SearchQuery, OshiRequest, UserOshiRequest, UserOshiAndGenresRequest
 from model.genres import UserGenres, UserOshiGenresRequest
+from handler.user import router as user_router
 
 # 環境変数をロード
 load_dotenv()
@@ -79,60 +80,8 @@ def extract_sns_links(soup):
     
     return sns_links
     
-# パスワードのハッシュ化
-def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
 
-# ユーザー登録エンドポイント
-@app.post("/register")
-async def register_user(user: UserCreate):
-    user_id = str(uuid.uuid4())
-    hashed_password = hash_password(user.password)
-
-    response = supabase.table('users').insert({
-        'id': user_id,
-        'email': user.email,
-        'password': hashed_password,
-        'username': user.username  # ユーザーネームを登録
-    }).execute()
-
-    if response.data:
-        return {
-            "message": "ユーザーが正常に作成されました",
-            "user": {
-                "username": user.username,
-                "email": user.email,
-                "password": user.password  # 注意: パスワードを含めるのはセキュリティ上推奨されません
-            }
-        }
-    else:
-        raise HTTPException(status_code=500, detail="ユーザー作成に失敗しました")
-
-# ユーザーログインエンドポイント
-@app.post("/login")
-async def login(user: UserLogin):
-    # Supabaseからユーザーのデータを取得
-    response = supabase.table('users').select('email', 'password', 'username').eq('email', user.email).execute()
-
-    # ユーザーが見つからない場合
-    if not response.data or not response.data[0]:
-        raise HTTPException(status_code=401, detail="emailまたはpasswordが違います")
-
-    # データベースに保存されているハッシュ化されたパスワード
-    saved_password_hash = response.data[0]['password']
-
-    # 入力されたパスワードをハッシュ化
-    input_password_hash = hash_password(user.password)
-
-    # ハッシュ化されたパスワードを比較
-    if saved_password_hash != input_password_hash:
-        raise HTTPException(status_code=401, detail="emailまたはpasswordが違います")
-
-    # ログイン成功時のレスポンス
-    return {
-            "username": response.data[0]['username'],
-            "email": user.email
-    }
+app.include_router(user_router, prefix="/users")
 
 # ジャンル選択エンドポイント
 @app.post("/select-genres")
