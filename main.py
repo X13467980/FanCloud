@@ -1,16 +1,8 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
-import uuid
-import hashlib
-import requests
-from bs4 import BeautifulSoup
-from model.user import UserCreate, UserLogin, EmailRequest 
-from model.oshi import SearchQuery, OshiRequest, UserOshiRequest, UserOshiAndGenresRequest
-from model.genres import UserGenres, UserOshiGenresRequest
 from handler.user import router as user_router
 from handler.genre import router as genre_router
 from handler.oshi import router as oshi_router
