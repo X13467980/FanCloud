@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from handler.user import router as user_router
 from handler.genre import router as genre_router
 from handler.oshi import router as oshi_router
+from handler.system import router as system_router
 
 # 環境変数をロード
 load_dotenv()
@@ -36,7 +37,4 @@ app.add_middleware(
 app.include_router(user_router, prefix="/user")
 app.include_router(genre_router, prefix="/genre")
 app.include_router(oshi_router, prefix="/oshi")
-
-@app.api_route("/send", methods=["GET", "HEAD"])
-async def keep_alive():
-    return {"message": "APP is active"}
+app.include_router(system_router)
