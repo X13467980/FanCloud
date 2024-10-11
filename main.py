@@ -38,5 +38,3 @@ app.include_router(user_router, prefix="/user")
 app.include_router(genre_router, prefix="/genre")
 app.include_router(oshi_router, prefix="/oshi")
 app.include_router(system_router)
-
-# aaaa
