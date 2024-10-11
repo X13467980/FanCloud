@@ -36,3 +36,7 @@ app.add_middleware(
 app.include_router(user_router, prefix="/user")
 app.include_router(genre_router, prefix="/genre")
 app.include_router(oshi_router, prefix="/oshi")
+
+@app.api_route("/send", methods=["GET", "HEAD"])
+async def keep_alive():
+    return {"message": "APP is active"}
