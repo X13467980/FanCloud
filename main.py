@@ -26,12 +26,12 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",  # ローカル開発環境
-        "https://fancloud.vercel.app"  # 本番環境のデプロイURL
+        "http://localhost:3000",
+        "https://fancloud.vercel.app"
     ],
-    allow_credentials=True,  # 認証情報（クッキーやAuthorizationヘッダーなど）を許可
-    allow_methods=["*"],  # すべてのHTTPメソッド（GET, POST, PUT, DELETEなど）を許可
-    allow_headers=["*"],  # すべてのHTTPヘッダーを許可
+    allow_credentials=True,
+    allow_methods=["*"], 
+    allow_headers=["*"],
 ) 
 
 app.include_router(user_router, prefix="/user")
