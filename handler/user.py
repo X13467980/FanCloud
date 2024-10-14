@@ -92,7 +92,3 @@ async def auth_callback(code: str):
         "username": user_data['user_metadata']['full_name'],
         "email": user_data['email']
     }
-    
-# aaa
-# bbb
-# ccc
