@@ -73,3 +73,22 @@ async def login(user: UserLogin):
             "username": response.data[0]['username'],
             "email": user.email
     }
+    
+@router.get("/login/google")
+async def google_login():
+    # GoogleのOAuth認証URLを生成
+    google_oauth_url = f"{SUPABASE_URL}/auth/v1/authorize?provider=google"
+    return {"url": google_oauth_url}
+
+@router.get("/auth/callback")
+async def auth_callback(code: str):
+    # SupabaseでGoogle OAuthの認証を完了するために、トークンエンドポイントにリクエストを送信
+    response = supabase.auth.api.get_user_by_access_token(code)
+    if response.error:
+        raise HTTPException(status_code=401, detail="Google認証に失敗しました")
+
+    user_data = response.user
+    return {
+        "username": user_data['user_metadata']['full_name'],
+        "email": user_data['email']
+    }
