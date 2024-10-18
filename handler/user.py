@@ -6,6 +6,7 @@ import os
 from dotenv import load_dotenv
 import supabase
 from model.user import UserCreate, UserLogin
+from fastapi.responses import RedirectResponse
 
 # 環境変数をロード
 load_dotenv()
@@ -74,21 +75,43 @@ async def login(user: UserLogin):
             "email": user.email
     }
     
+# Googleログインエンドポイント
 @router.get("/login/google")
 async def google_login():
-    # GoogleのOAuth認証URLを生成
-    google_oauth_url = f"{SUPABASE_URL}/auth/v1/authorize?provider=google"
-    return {"url": google_oauth_url}
+    # GoogleのOAuth認証URLにリダイレクト
+    redirect_url = f"{SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=http://localhost:8000/user/auth/callback"
+    return RedirectResponse(url=redirect_url)
 
+# Google認証後のコールバック
 @router.get("/auth/callback")
-async def auth_callback(code: str):
-    # SupabaseでGoogle OAuthの認証を完了するために、トークンエンドポイントにリクエストを送信
-    response = supabase.auth.api.get_user_by_access_token(code)
-    if response.error:
-        raise HTTPException(status_code=401, detail="Google認証に失敗しました")
+async def google_auth_callback(token: str = None):
+    if token is None:
+        raise HTTPException(status_code=400, detail="Token is missing")
+    
+    # Supabaseのauth APIを使ってユーザー情報を取得
+    user_info = supabase.auth.api.get_user(token)
 
-    user_data = response.user
+    if not user_info:
+        raise HTTPException(status_code=401, detail="Google authentication failed")
+
+    # 必要ならユーザーをデータベースに登録する
+    user_id = user_info.user.id
+    email = user_info.user.email
+
+    # 既存ユーザーかチェックし、存在しなければ新規登録
+    response = supabase.table('users').select('id').eq('email', email).execute()
+    
+    if not response.data:
+        # 新規ユーザーの場合、ユーザーデータを登録
+        supabase.table('users').insert({
+            'id': user_id,
+            'email': email,
+            'username': user_info.user.user_metadata.get('full_name', 'GoogleUser')
+        }).execute()
+
+    # 認証成功時のレスポンス
     return {
-        "username": user_data['user_metadata']['full_name'],
-        "email": user_data['email']
+        "message": "Google認証に成功しました",
+        "email": email,
+        "username": user_info.user.user_metadata.get('full_name', 'GoogleUser')
     }
