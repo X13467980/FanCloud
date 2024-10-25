@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 import supabase
 from model.user import UserCreate, UserLogin
 from fastapi.responses import RedirectResponse
+from fastapi import Request
 
 # 環境変数をロード
 load_dotenv()
@@ -84,8 +85,10 @@ async def google_login():
 
 # Google認証後のコールバック
 @router.get("/auth/callback")
-async def google_auth_callback(token: str = None):
+async def google_auth_callback(request: Request, token: str = None):
     if token is None:
+        # リクエスト全体をログに記録して、クエリパラメータを確認
+        print(f"Request: {request.query_params}")
         raise HTTPException(status_code=400, detail="Token is missing")
     
     # Supabaseのauth APIを使ってユーザー情報を取得
@@ -94,24 +97,9 @@ async def google_auth_callback(token: str = None):
     if not user_info:
         raise HTTPException(status_code=401, detail="Google authentication failed")
 
-    # 必要ならユーザーをデータベースに登録する
-    user_id = user_info.user.id
-    email = user_info.user.email
-
-    # 既存ユーザーかチェックし、存在しなければ新規登録
-    response = supabase.table('users').select('id').eq('email', email).execute()
-    
-    if not response.data:
-        # 新規ユーザーの場合、ユーザーデータを登録
-        supabase.table('users').insert({
-            'id': user_id,
-            'email': email,
-            'username': user_info.user.user_metadata.get('full_name', 'GoogleUser')
-        }).execute()
-
     # 認証成功時のレスポンス
     return {
         "message": "Google認証に成功しました",
-        "email": email,
+        "email": user_info.user.email,
         "username": user_info.user.user_metadata.get('full_name', 'GoogleUser')
     }
