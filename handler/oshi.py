@@ -51,10 +51,22 @@ def fetch_wikipedia_info(oshi_name):
 
     return page_url
 
+# WikipediaページのHTMLから必要な情報をパース
 def parse_wikipedia_page(url):
     """WikipediaページのHTMLから必要な情報をパース"""
     response = requests.get(url)
     soup = BeautifulSoup(response.content, 'html.parser')
+
+    # 国籍を取得
+    nationality = "国籍が見つかりません"
+    infobox = soup.find("table", class_="infobox")
+    if infobox:
+        nationality_tag = infobox.find("th", text="国籍")
+        if nationality_tag:
+            nationality_data = nationality_tag.find_next_sibling("td")
+            if nationality_data:
+                nationality = nationality_data.get_text(strip=True)
+
 
     # 公式サイトURLを取得
     official_site_tag = soup.find(class_="official-website")
@@ -97,7 +109,7 @@ def parse_wikipedia_page(url):
         "sns_links": sns_links,
         "image_url": image_url,
         "profession": profession,
-        "summary": summary
+        "summary": summary,
     }
 
 # SNSリンク抽出ヘルパー関数
@@ -145,8 +157,12 @@ async def fetch_oshi_info(request: OshiRequest):
     page_url = fetch_wikipedia_info(oshi_name)
     wiki_info = parse_wikipedia_page(page_url)
 
+    # 日本人かどうかを確認
+    is_japanese = "Japan" in wiki_info.get("nationality", "")
+    display_name = oshi_name if is_japanese else oshi_name
+
     return {
-        "oshi_name": oshi_name,
+        "oshi_name": display_name,
         "wikipedia_url": page_url,
         **wiki_info
     }
