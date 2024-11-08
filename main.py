@@ -7,6 +7,7 @@ from handler.user import router as user_router
 from handler.genre import router as genre_router
 from handler.oshi import router as oshi_router
 from handler.system import router as system_router
+from handler.content import router as content_router
 
 # 環境変数をロード
 load_dotenv()
@@ -38,7 +39,8 @@ app.get("/")
 async def root():
     return {"message": "Hello World"}
 
-app.include_router(user_router, prefix="/user")
-app.include_router(genre_router, prefix="/genre")
-app.include_router(oshi_router, prefix="/oshi")
-app.include_router(system_router)
+app.include_router(user_router, prefix="/user", tags=["User"])
+app.include_router(genre_router, prefix="/genre", tags=["Genre"])
+app.include_router(oshi_router, prefix="/oshi", tags=["Oshi"])
+app.include_router(system_router, tags=["System"])
+app.include_router(content_router, prefix="/content", tags=["Content"])
