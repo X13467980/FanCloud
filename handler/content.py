@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Union
+from uuid import UUID
 from supabase import create_client, Client
 import os
 
@@ -23,18 +24,18 @@ class ImageContent(BaseModel):
 class EventContent(BaseModel):
     type: str
     title: str
-    start: str
-    end: Union[str, None]
+    start_date: str  # 修正
+    end_date: Union[str, None]  # 修正
     order_index: int
 
 ContentData = Union[TextContent, ImageContent, EventContent]
 
 @router.post("/create-content")
-async def create_content(oshi_id: int, content: ContentData):
+async def create_content(oshi_id: UUID, content: ContentData):
     try:
         # content テーブルに挿入
         content_data = {
-            "oshi_id": oshi_id,
+            "oshi_id": str(oshi_id),
             "type": content.type,
             "order_index": content.order_index,
         }
@@ -65,8 +66,8 @@ async def create_content(oshi_id: int, content: ContentData):
             event_data = {
                 "id": content_id,
                 "title": content.title,
-                "start": content.start,
-                "end": content.end,
+                "start_date": content.start_date,  # 修正
+                "end_date": content.end_date,  # 修正
             }
             supabase.table("event_data").insert(event_data).execute()
 
@@ -74,12 +75,12 @@ async def create_content(oshi_id: int, content: ContentData):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
+
 @router.get("/fetch-content")
-async def fetch_content(oshi_id: int):
+async def fetch_content(oshi_id: UUID):
     try:
         # content テーブルからデータを取得
-        content_response = supabase.table("content").select("*").eq("oshi_id", oshi_id).order("order_index").execute()
+        content_response = supabase.table("content").select("*").eq("oshi_id", str(oshi_id)).order("order_index").execute()
         content_list = []
 
         for content in content_response.data:
