@@ -1,34 +1,12 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
 from typing import Union
 from uuid import UUID
 from supabase import create_client, Client
 import os
+from model.content import ContentData, TextContent, ImageContent, EventContent
 
 router = APIRouter()
 supabase: Client = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
-
-class TextContent(BaseModel):
-    type: str
-    text: str
-    fontSize: int
-    alignment: str
-    order_index: int
-
-class ImageContent(BaseModel):
-    type: str
-    src: str
-    size: int
-    order_index: int
-
-class EventContent(BaseModel):
-    type: str
-    title: str
-    start_date: str  # 修正
-    end_date: Union[str, None]  # 修正
-    order_index: int
-
-ContentData = Union[TextContent, ImageContent, EventContent]
 
 @router.post("/create-content")
 async def create_content(oshi_id: UUID, content: ContentData):
@@ -43,7 +21,7 @@ async def create_content(oshi_id: UUID, content: ContentData):
         content_id = response.data[0]["id"]
 
         # テキストデータの場合
-        if content.type == "text":
+        if isinstance(content, TextContent):
             text_data = {
                 "id": content_id,
                 "text": content.text,
@@ -53,7 +31,7 @@ async def create_content(oshi_id: UUID, content: ContentData):
             supabase.table("text_data").insert(text_data).execute()
 
         # 画像データの場合
-        elif content.type == "image":
+        elif isinstance(content, ImageContent):
             image_data = {
                 "id": content_id,
                 "src": content.src,
@@ -62,12 +40,12 @@ async def create_content(oshi_id: UUID, content: ContentData):
             supabase.table("image_data").insert(image_data).execute()
 
         # イベントデータの場合
-        elif content.type == "event":
+        elif isinstance(content, EventContent):
             event_data = {
                 "id": content_id,
                 "title": content.title,
-                "start_date": content.start_date,  # 修正
-                "end_date": content.end_date,  # 修正
+                "start_date": content.start_date,
+                "end_date": content.end_date,
             }
             supabase.table("event_data").insert(event_data).execute()
 
