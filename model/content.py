@@ -23,6 +23,15 @@ class EventContent(BaseModel):
     start_date: str
     end_date: Union[str, None]
     order_index: int
+    
+class CreateContentRequest(BaseModel):
+    email: str
+    oshi_name: str
+    content: Union[TextContent, ImageContent, EventContent]
+
+class FetchContentRequest(BaseModel):
+    email: str
+    oshi_name: str
 
 # Union型のContentData
 ContentData = Union[TextContent, ImageContent, EventContent]
