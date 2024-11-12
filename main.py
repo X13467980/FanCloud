@@ -9,19 +9,15 @@ from handler.oshi import router as oshi_router
 from handler.system import router as system_router
 from handler.content import router as content_router
 
-# 環境変数をロード
 load_dotenv()
 
-# Supabase URLとキーを取得
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 SEARCH_ENGINE_ID = os.getenv("GOOGLE_CSE_ID")
 
-# Supabaseクライアントを作成
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# FastAPIアプリケーションのインスタンス
 app = FastAPI(debug=True)
 
 app.add_middleware(
@@ -33,9 +29,9 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"], 
     allow_headers=["*"],
-) 
+)
 
-app.get("/")
+@app.get("/")
 async def root():
     return {"message": "Hello World"}
 
