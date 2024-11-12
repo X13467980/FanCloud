@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from typing import Union
+from typing import List
 from uuid import UUID
 from supabase import create_client, Client
 import os
@@ -26,42 +26,44 @@ async def create_content(request: CreateContentRequest):
     try:
         oshi_id = await get_oshi_id(request.email, request.oshi_name)
 
-        content_data = {
-            "oshi_id": str(oshi_id),
-            "type": request.content.type,
-            "order_index": request.content.order_index,
-        }
-        response = supabase.table("content").insert(content_data).execute()
-        content_id = response.data[0]["id"]
-
-        # データの種類に応じて挿入
-        if request.content.type == "text":
-            text_data = {
-                "id": content_id,
-                "text": request.content.text,
-                "font_size": request.content.fontSize,
-                "alignment": request.content.alignment,
+        # 複数のコンテンツを順番に挿入
+        for content in request.content:
+            content_data = {
+                "oshi_id": str(oshi_id),
+                "type": content.type,
+                "order_index": content.order_index,
             }
-            supabase.table("text_data").insert(text_data).execute()
+            response = supabase.table("content").insert(content_data).execute()
+            content_id = response.data[0]["id"]
 
-        elif request.content.type == "image":
-            image_data = {
-                "id": content_id,
-                "src": request.content.src,
-                "size": request.content.size,
-            }
-            supabase.table("image_data").insert(image_data).execute()
+            # データの種類に応じて挿入
+            if content.type == "text":
+                text_data = {
+                    "id": content_id,
+                    "text": content.text,
+                    "font_size": content.fontSize,
+                    "alignment": content.alignment,
+                }
+                supabase.table("text_data").insert(text_data).execute()
 
-        elif request.content.type == "event":
-            event_data = {
-                "id": content_id,
-                "title": request.content.title,
-                "start_date": request.content.start_date,
-                "end_date": request.content.end_date,
-            }
-            supabase.table("event_data").insert(event_data).execute()
+            elif content.type == "image":
+                image_data = {
+                    "id": content_id,
+                    "src": content.src,
+                    "size": content.size,
+                }
+                supabase.table("image_data").insert(image_data).execute()
 
-        return {"message": "Content created successfully", "content_id": content_id}
+            elif content.type == "event":
+                event_data = {
+                    "id": content_id,
+                    "title": content.title,
+                    "start_date": content.start_date,
+                    "end_date": content.end_date,
+                }
+                supabase.table("event_data").insert(event_data).execute()
+
+        return {"message": "All content created successfully"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
