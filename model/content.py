@@ -26,7 +26,7 @@ ContentData = Union[TextContent, ImageContent, EventContent]
 class CreateContentRequest(BaseModel):
     email: str
     oshi_name: str
-    content: List[ContentData]  # コンテンツのリストとして受け取る
+    content: List[ContentData]
 
 class FetchContentRequest(BaseModel):
     email: str
