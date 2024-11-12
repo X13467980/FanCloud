@@ -169,14 +169,43 @@ async def get_user_oshi_genres(request: UserOshiGenresRequest):
 @router.post("/delete-oshi")
 async def delete_oshi(request: UserOshiRequest):
     email = request.email
-    oshi_name = request.oshi_name
+    oshi_names = request.oshi_names
     user_id = get_user_id(email)
-    oshi_data = supabase.table('oshi').select('id').eq('user_id', user_id).eq('oshi_name', oshi_name).execute()
-    if not oshi_data.data or not oshi_data.data[0]:
-        raise HTTPException(status_code=404, detail="Oshi not found")
-    oshi_id = oshi_data.data[0]['id']
-    response = supabase.table('oshi').delete().eq('id', oshi_id).execute()
-    if response.data:
-        return {"message": f"Oshi {oshi_name} deleted successfully"}
+
+    deleted_oshi = []
+    not_found_oshi = []
+
+    for oshi_name in oshi_names:
+        oshi_data = supabase.table('oshi').select('id').eq('user_id', user_id).eq('oshi_name', oshi_name).execute()
+        if not oshi_data.data or not oshi_data.data[0]:
+            not_found_oshi.append(oshi_name)
+            continue
+
+        oshi_id = oshi_data.data[0]['id']
+        response = supabase.table('oshi').delete().eq('id', oshi_id).execute()
+        if response.data:
+            deleted_oshi.append(oshi_name)
+        else:
+            raise HTTPException(status_code=500, detail=f"Failed to delete oshi {oshi_name}")
+        
+    if deleted_oshi and not not_found_oshi:
+        return {
+            "status": "success",
+            "message": "All selected oshi deleted successfully.",
+            "deleted": deleted_oshi
+        }
+    elif deleted_oshi and not_found_oshi:
+        return {
+            "status": "partial_success",
+            "message": "Some oshi were deleted successfully, but some were not found.",
+            "deleted": deleted_oshi,
+            "not_found": not_found_oshi
+        }
+    elif not deleted_oshi and not_found_oshi:
+        return {
+            "status": "failure",
+            "message": "No oshi were deleted. All specified oshi were not found.",
+            "not_found": not_found_oshi
+        }
     else:
-        raise HTTPException(status_code=500, detail="Failed to delete oshi")
+        raise HTTPException(status_code=500, detail="Unexpected error during oshi deletion.")
