@@ -26,7 +26,6 @@ async def create_content(request: CreateContentRequest):
     try:
         oshi_id = await get_oshi_id(request.email, request.oshi_name)
 
-        # 複数のコンテンツを順番に挿入
         for content in request.content:
             content_data = {
                 "oshi_id": str(oshi_id),
@@ -36,7 +35,6 @@ async def create_content(request: CreateContentRequest):
             response = supabase.table("content").insert(content_data).execute()
             content_id = response.data[0]["id"]
 
-            # データの種類に応じて挿入
             if content.type == "text":
                 text_data = {
                     "id": content_id,
