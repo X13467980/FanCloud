@@ -81,11 +81,7 @@ async def login(user: UserLogin):
 async def google_login():
     # GoogleのOAuth認証URLにリダイレクト
     redirect_url = f"{SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=http://localhost:8000/user/auth/callback"
-    try:
-        RedirectResponse(url=redirect_url)
-    except Exception as e:
-        print(e)
-        return e
+    return  RedirectResponse(url=redirect_url)
 
 # Google認証後のコールバック
 @router.get("/auth/callback")
