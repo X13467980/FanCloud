@@ -68,7 +68,7 @@ async def create_content(request: CreateContentRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/fetch-content")
+@router.post("/fetch-content")
 async def fetch_content(request: FetchContentRequest):
     try:
         oshi_id = await get_oshi_id(request.email, request.oshi_name)

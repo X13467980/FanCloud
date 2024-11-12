@@ -22,7 +22,7 @@ SEARCH_ENGINE_ID = os.getenv("GOOGLE_CSE_ID")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # FastAPIアプリケーションのインスタンス
-app = FastAPI()
+app = FastAPI(debug=True)
 
 app.add_middleware(
     CORSMiddleware,
