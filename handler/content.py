@@ -58,6 +58,7 @@ async def create_content(request: CreateContentRequest):
                     "title": content.title,
                     "start_date": content.start_date,
                     "end_date": content.end_date,
+                    "count": content.count
                 }
                 supabase.table("event_data").insert(event_data).execute()
 

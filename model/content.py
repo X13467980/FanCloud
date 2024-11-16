@@ -19,6 +19,7 @@ class EventContent(BaseModel):
     title: str
     start_date: str
     end_date: Union[str, None]
+    count: int
     order_index: int
 
 class SnsLink(BaseModel):
