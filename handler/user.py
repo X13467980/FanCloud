@@ -14,6 +14,7 @@ load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+REDIRECT_URL = os.getenv("REDIRECT_URL")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -73,7 +74,7 @@ async def login(user: UserLogin):
     
 @router.get("/login/google")
 async def google_login():
-    redirect_url = f"{SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=http://localhost:8000/user/auth/callback"
+    redirect_url = f"{SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to={REDIRECT_URL}"
     return  RedirectResponse(url=redirect_url)
 
 @router.get("/auth/callback")
