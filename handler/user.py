@@ -54,7 +54,6 @@ async def register_user(user: UserCreate):
 
 @router.post("/login")
 async def login(user: UserLogin):
-
     response = supabase.table('users').select('email', 'password', 'username').eq('email', user.email).execute()
 
     if not response.data or not response.data[0]:
@@ -62,15 +61,14 @@ async def login(user: UserLogin):
 
     saved_password_hash = response.data[0]['password']
 
-    input_password_hash = hash_password(user.password)
-
-    if saved_password_hash != input_password_hash:
+    if not verify_password(user.password, saved_password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     return {
-            "username": response.data[0]['username'],
-            "email": user.email
+        "username": response.data[0]['username'],
+        "email": user.email
     }
+
     
 @router.get("/login/google")
 async def google_login():
