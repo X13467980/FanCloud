@@ -61,6 +61,15 @@ async def create_content(request: CreateContentRequest):
                 }
                 supabase.table("event_data").insert(event_data).execute()
 
+            elif content.type == "sns":
+                for link in content.snsLinks:
+                    sns_data = {
+                        "id": content_id,
+                        "name": link.name,
+                        "url": link.url,
+                    }
+                    supabase.table("sns_data").insert(sns_data).execute()
+
         return {"message": "All content created successfully"}
 
     except Exception as e:
@@ -89,6 +98,11 @@ async def fetch_content(request: FetchContentRequest):
             elif content_type == "event":
                 event_data = supabase.table("event_data").select("*").eq("id", content_id).execute().data[0]
                 content_list.append({**content, **event_data})
+
+            elif content_type == "sns":
+                sns_data_response = supabase.table("sns_data").select("*").eq("id", content_id).execute().data
+                sns_links = [{"name": link["name"], "url": link["url"]} for link in sns_data_response]
+                content_list.append({**content, "snsLinks": sns_links})
 
         return {"content": content_list}
 

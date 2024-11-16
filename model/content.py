@@ -21,7 +21,16 @@ class EventContent(BaseModel):
     end_date: Union[str, None]
     order_index: int
 
-ContentData = Union[TextContent, ImageContent, EventContent]
+class SnsLink(BaseModel):
+    name: str
+    url: str
+
+class SnsContent(BaseModel):
+    type: str
+    snsLinks: List[SnsLink]
+    order_index: int
+
+ContentData = Union[TextContent, ImageContent, EventContent, SnsContent]
 
 class CreateContentRequest(BaseModel):
     email: str
