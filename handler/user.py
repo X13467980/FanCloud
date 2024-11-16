@@ -8,6 +8,7 @@ import supabase
 from model.user import UserCreate, UserLogin
 from fastapi.responses import RedirectResponse
 from fastapi import Request
+import bcrypt
 
 load_dotenv()
 
@@ -19,7 +20,12 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 router = APIRouter()
 
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode(), salt).decode()
+
+
+def verify_password(password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(password.encode(), hashed_password.encode())
 
 @router.post("/register")
 async def register_user(user: UserCreate):
