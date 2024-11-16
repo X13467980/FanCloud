@@ -33,24 +33,26 @@ async def register_user(user: UserCreate):
     user_id = str(uuid.uuid4())
     hashed_password = hash_password(user.password)
 
-    response = supabase.table('users').insert({
-        'id': user_id,
-        'email': user.email,
-        'password': hashed_password,
-        'username': user.username
-    }).execute()
+    try:
+        response = supabase.table('users').insert({
+            'id': user_id,
+            'email': user.email,
+            'password': hashed_password,
+            'username': user.username
+        }).execute()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-    if response.data:
-        return {
-            "message": "User successfully created",
-            "user": {
-                "username": user.username,
-                "email": user.email,
-                "password": user.password
-            }
+    return {
+        "message": "User successfully created",
+        "user": {
+            "username": user.username,
+            "email": user.email,
+            "password": user.password
         }
-    else:
-        raise HTTPException(status_code=500, detail="Failed to create user")
+    }
+    
+    
 
 @router.post("/login")
 async def login(user: UserLogin):
