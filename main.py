@@ -31,12 +31,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/")
+@app.get("/", tags=["Default"])
 async def root():
-    return {"message": "Hello World"}
+    return {
+        "message": (
+            "Welcome to FanCloud!\n\n"
+            "FanCloudは、あなたの推し情報をまとめ、ジャンル別に管理できるプラットフォームです。\n"
+            "ユーザーはお気に入りのアーティストやキャラクターに関するノートを作成し、"
+            "画像やイベント情報を追加できます。\n"
+            "シンプルでおしゃれなUIが、楽しいファンライフをサポートします。\n\n"
+            "主な機能:\n"
+            "- ユーザー認証とGoogleログイン\n"
+            "- ジャンル別に推し情報を管理\n"
+            "- 画像やイベントの追加機能\n"
+            "- シンプルでおしゃれなUIデザイン\n\n"
+            "📄 詳細なAPIドキュメントは /docs で確認できます。"
+        )
+    }
 
+app.include_router(system_router, tags=["System"])
 app.include_router(user_router, prefix="/user", tags=["User"])
 app.include_router(genre_router, prefix="/genre", tags=["Genre"])
 app.include_router(oshi_router, prefix="/oshi", tags=["Oshi"])
-app.include_router(system_router, tags=["System"])
 app.include_router(content_router, prefix="/content", tags=["Content"])
